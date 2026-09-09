@@ -10,12 +10,12 @@ window.__ModuleLoader__.load({
 		const zh = {
 			"menu.groupTitle": "技能",
 			"menu.userOnly": "仅用户",
-			"menu.loading": "正在加载技能列表…"
+			"menu.entryHint": "列出全部技能（中/英文描述自动翻译）"
 		};
 		const en = {
 			"menu.groupTitle": "Skills",
 			"menu.userOnly": "user-only",
-			"menu.loading": "Loading skills…"
+			"menu.entryHint": "List all skills (descriptions auto-translated zh/en)"
 		};
 
 		/* ── inject dependencies ─────────────────────────────── */
@@ -23,7 +23,8 @@ window.__ModuleLoader__.load({
 			"inputTriggers",
 			"connection",
 			"sessions",
-			"locale"
+			"locale",
+			"remote"
 		];
 
 		/* ── detect system language ──────────────────────────── */
@@ -37,9 +38,6 @@ window.__ModuleLoader__.load({
 		/* ── language detection heuristic ────────────────────── */
 		const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf]/;
 		function isChinese(text) { return CJK_RE.test(text); }
-
-		/* ── translation cache (client-side, per session) ───── */
-		const translationCache = new Map(); // key: `${locale}:${text}` → translated
 
 		/* ── fetch translated catalog from host ──────────────── */
 		async function fetchTranslatedCatalog(sessionId, locale, signal) {
@@ -74,6 +72,8 @@ window.__ModuleLoader__.load({
 
 			/** Fetch + translate the skill catalog for one session. */
 			const fetchCatalog = (sessionId) => {
+				// Catalog-addressed subagent sessions have no attached agent — skill.list fails there.
+				if (sessions.subagentAddress(sessionId) !== undefined) return Promise.resolve([]);
 				const existing = fetches.get(sessionId);
 				if (existing !== undefined) return existing.promise;
 
@@ -134,10 +134,14 @@ window.__ModuleLoader__.load({
 				name: "skill-list",
 				order: 3,   // after built-in skill (2) and command (1)
 				async candidates(session, { query, signal }) {
-					// Only activate for "/skills" or "/skills <filter>"
+					// Bare "/" → offer just the skills entry (avoid duplicating the built-in skill list).
+					// "/skills" or "/skills <filter>" → the translated catalog.
 					const q = query.trimStart();
 					if (q !== "" && !q.startsWith("skills")) return [];
-					const filter = q === "skills" ? "" : q.slice("skills".length).trimStart();
+					if (q === "") {
+						return [{ name: "skills", description: t("menu.entryHint") }];
+					}
+					const filter = q.slice("skills".length).trimStart();
 
 					let skills;
 					try {
