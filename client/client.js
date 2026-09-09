@@ -25,7 +25,12 @@ window.__ModuleLoader__.load({
 			"settings.noKey": "未配置自定义 Key（仅使用 DSH 内置模型）",
 			"settings.clearCache": "清空翻译缓存",
 			"settings.cacheCount": "条缓存",
-			"settings.failed": "操作失败："
+			"settings.failed": "操作失败：",
+			"settings.skillsTitle": "技能自定义注释",
+			"settings.skillsDesc": "有注释的技能在菜单中直接显示注释（灰字），不再翻译；注释留空保存则清除注释、恢复自动翻译。",
+			"settings.notePlaceholder": "自定义注释，留空清除",
+			"settings.noteSave": "保存",
+			"settings.noteSaved": "已保存"
 		};
 		const en = {
 			"menu.groupTitle": "Skills",
@@ -40,7 +45,12 @@ window.__ModuleLoader__.load({
 			"settings.noKey": "No custom key configured (built-in model only)",
 			"settings.clearCache": "Clear translation cache",
 			"settings.cacheCount": "entries",
-			"settings.failed": "Operation failed: "
+			"settings.failed": "Operation failed: ",
+			"settings.skillsTitle": "Skill notes",
+			"settings.skillsDesc": "A noted skill shows its note in the menu (secondary text) and skips translation; save an empty note to clear it and restore auto-translation.",
+			"settings.notePlaceholder": "Custom note; leave empty to clear",
+			"settings.noteSave": "Save",
+			"settings.noteSaved": "Saved"
 		};
 
 		/* ── inject dependencies ─────────────────────────────── */
@@ -91,7 +101,7 @@ window.__ModuleLoader__.load({
 			}, []);
 			react.useEffect(() => { refresh(); }, [refresh]);
 
-			const post = react.useCallback(async (payload, okMessage) => {
+			const post = react.useCallback(async (payload, okMessage, opts = {}) => {
 				setBusy(true);
 				setMessage("");
 				try {
@@ -103,14 +113,44 @@ window.__ModuleLoader__.load({
 					const body = await resp.json();
 					if (!resp.ok) throw new Error(body.error || "HTTP " + resp.status);
 					setStatus(body);
-					setApiKey("");
-					setMessage(okMessage);
+					if (!opts.keepKey) setApiKey("");
+					if (okMessage) setMessage(okMessage);
 				} catch (e) {
 					setMessage(t("settings.failed") + e.message);
 				} finally {
 					setBusy(false);
 				}
 			}, [t]);
+
+			// Per-skill note drafts (name → current input value).
+			const [noteDrafts, setNoteDrafts] = react.useState({});
+			const skills = (status && status.skills) || [];
+
+			const noteRow = (s) => {
+				const draft = noteDrafts[s.name] !== undefined ? noteDrafts[s.name] : s.note;
+				const dirty = draft !== s.note;
+				return h("div", { key: s.name, style: { display: "flex", flexDirection: "column", gap: 4 } },
+					h("div", { style: { fontSize: 12 } },
+						h("code", { style: { fontWeight: 600 } }, s.name),
+						h("span", { style: { opacity: 0.55, marginLeft: 8, fontSize: 11 } },
+							(s.description || "").slice(0, 60) + ((s.description || "").length > 60 ? "…" : ""))
+					),
+					h("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
+						h(primitives.Input, {
+							placeholder: t("settings.notePlaceholder"),
+							value: draft,
+							onChange: (e) => setNoteDrafts((prev) => ({ ...prev, [s.name]: e.target.value })),
+							style: { flex: 1 },
+						}),
+						h(primitives.Button, {
+							variant: dirty ? "primary" : "outline",
+							size: "sm",
+							disabled: busy || !dirty,
+							onClick: () => post({ action: "saveNote", name: s.name, note: draft.trim() }, t("settings.noteSaved"), { keepKey: true }),
+						}, t("settings.noteSave"))
+					)
+				);
+			};
 
 			return h("div", { style: { display: "flex", flexDirection: "column", gap: 10, maxWidth: 520 } },
 				h("p", { style: { margin: 0, opacity: 0.75, fontSize: 12, lineHeight: 1.6 } }, t("settings.desc")),
@@ -137,10 +177,15 @@ window.__ModuleLoader__.load({
 						variant: "outline",
 						size: "sm",
 						disabled: busy,
-						onClick: () => post({ action: "clearCache" }, t("settings.saved")),
+						onClick: () => post({ action: "clearCache" }, t("settings.saved"), { keepKey: true }),
 					}, t("settings.clearCache") + (status ? ` (${status.cacheEntries} ${t("settings.cacheCount")})` : ""))
 				),
-				message !== "" && h("div", { style: { fontSize: 12, opacity: 0.9 } }, message)
+				message !== "" && h("div", { style: { fontSize: 12, opacity: 0.9 } }, message),
+				h("div", { style: { borderTop: "1px solid rgba(128,128,128,0.25)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 } },
+					h("div", { style: { fontSize: 13, fontWeight: 600 } }, t("settings.skillsTitle")),
+					h("p", { style: { margin: 0, opacity: 0.75, fontSize: 12, lineHeight: 1.6 } }, t("settings.skillsDesc")),
+					skills.map(noteRow)
+				)
 			);
 		}
 
