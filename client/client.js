@@ -5,17 +5,42 @@ window.__ModuleLoader__.load({
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 
+		/* ── requires (host-injected module table) ───────────── */
+		const react = require("react");
+		const h = react.createElement;
+		const primitives = require("@deepseek-ai/dsh-client-ui-primitives");
+
 		/* ── locale dictionaries ─────────────────────────────── */
 		const NS = "skill-list";
 		const zh = {
 			"menu.groupTitle": "技能",
 			"menu.userOnly": "仅用户",
-			"menu.entryHint": "列出全部技能（中/英文描述自动翻译）"
+			"menu.entryHint": "列出全部技能（中/英文描述自动翻译）",
+			"settings.nav": "技能翻译",
+			"settings.desc": "技能菜单描述的翻译方式：优先使用 DSH 内置模型（与当前会话同一供应商与凭据）；也可在下方填入自定义 DeepSeek API Key 作为备用通道。",
+			"settings.placeholder": "自定义 DeepSeek API Key（可选，sk-…）",
+			"settings.save": "保存 Key",
+			"settings.saved": "已保存，翻译缓存已清空",
+			"settings.keySet": "已配置自定义 Key：",
+			"settings.noKey": "未配置自定义 Key（仅使用 DSH 内置模型）",
+			"settings.clearCache": "清空翻译缓存",
+			"settings.cacheCount": "条缓存",
+			"settings.failed": "操作失败："
 		};
 		const en = {
 			"menu.groupTitle": "Skills",
 			"menu.userOnly": "user-only",
-			"menu.entryHint": "List all skills (descriptions auto-translated zh/en)"
+			"menu.entryHint": "List all skills (descriptions auto-translated zh/en)",
+			"settings.nav": "Skill Translation",
+			"settings.desc": "How skill-menu descriptions are translated: the DSH built-in model is used first (same provider and credentials as this session); a custom DeepSeek API key below serves as the fallback channel.",
+			"settings.placeholder": "Custom DeepSeek API key (optional, sk-…)",
+			"settings.save": "Save key",
+			"settings.saved": "Saved; translation cache cleared",
+			"settings.keySet": "Custom key configured:",
+			"settings.noKey": "No custom key configured (built-in model only)",
+			"settings.clearCache": "Clear translation cache",
+			"settings.cacheCount": "entries",
+			"settings.failed": "Operation failed: "
 		};
 
 		/* ── inject dependencies ─────────────────────────────── */
@@ -24,7 +49,8 @@ window.__ModuleLoader__.load({
 			"connection",
 			"sessions",
 			"locale",
-			"remote"
+			"remote",
+			"slots"
 		];
 
 		/* ── detect system language ──────────────────────────── */
@@ -48,6 +74,74 @@ window.__ModuleLoader__.load({
 			} catch {
 				return null; // fallback: no translation
 			}
+		}
+
+		/* ── settings section component ──────────────────────── */
+		function SettingsSection({ t }) {
+			const [status, setStatus] = react.useState(null);
+			const [apiKey, setApiKey] = react.useState("");
+			const [busy, setBusy] = react.useState(false);
+			const [message, setMessage] = react.useState("");
+
+			const refresh = react.useCallback(() => {
+				fetch("/api/skill-list-config", { cache: "no-store" })
+					.then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+					.then((body) => setStatus(body))
+					.catch(() => setStatus(null));
+			}, []);
+			react.useEffect(() => { refresh(); }, [refresh]);
+
+			const post = react.useCallback(async (payload, okMessage) => {
+				setBusy(true);
+				setMessage("");
+				try {
+					const resp = await fetch("/api/skill-list-config", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(payload),
+					});
+					const body = await resp.json();
+					if (!resp.ok) throw new Error(body.error || "HTTP " + resp.status);
+					setStatus(body);
+					setApiKey("");
+					setMessage(okMessage);
+				} catch (e) {
+					setMessage(t("settings.failed") + e.message);
+				} finally {
+					setBusy(false);
+				}
+			}, [t]);
+
+			return h("div", { style: { display: "flex", flexDirection: "column", gap: 10, maxWidth: 520 } },
+				h("p", { style: { margin: 0, opacity: 0.75, fontSize: 12, lineHeight: 1.6 } }, t("settings.desc")),
+				h("div", { style: { fontSize: 12, opacity: 0.85 } },
+					status && status.hasKey
+						? [t("settings.keySet") + " ", h("code", { key: "k" }, status.keyMasked)]
+						: t("settings.noKey")
+				),
+				h("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
+					h(primitives.Input, {
+						type: "password",
+						placeholder: t("settings.placeholder"),
+						value: apiKey,
+						onChange: (e) => setApiKey(e.target.value),
+						style: { flex: 1 },
+					}),
+					h(primitives.Button, {
+						variant: "primary",
+						size: "sm",
+						disabled: busy || apiKey.trim() === "",
+						onClick: () => post({ action: "save", apiKey: apiKey.trim() }, t("settings.saved")),
+					}, t("settings.save")),
+					h(primitives.Button, {
+						variant: "outline",
+						size: "sm",
+						disabled: busy,
+						onClick: () => post({ action: "clearCache" }, t("settings.saved")),
+					}, t("settings.clearCache") + (status ? ` (${status.cacheEntries} ${t("settings.cacheCount")})` : ""))
+				),
+				message !== "" && h("div", { style: { fontSize: 12, opacity: 0.9 } }, message)
+			);
 		}
 
 		/* ── apply (browser entry) ───────────────────────────── */
@@ -187,6 +281,18 @@ window.__ModuleLoader__.load({
 				const unregister = inputTriggers.registerSource(source);
 				return () => { unregister(); clearAll(); };
 			}, "skill-list: source");
+
+			// Settings page section: "Skill Translation" (key config + cache reset).
+			ctx.effect(() => {
+				const slots = ctx.get("slots");
+				slots.inject("settings.section", () => slots.register({
+					name: "settings.section",
+					id: "skill-translation",
+					order: 41,
+					label: () => t("settings.nav"),
+					locale: NS,
+				}, () => h(SettingsSection, { t })));
+			}, "skill-list: settings section");
 		}
 
 		exports.apply = apply;
