@@ -134,14 +134,15 @@ window.__ModuleLoader__.load({
 				name: "skill-list",
 				order: 3,   // after built-in skill (2) and command (1)
 				async candidates(session, { query, signal }) {
-					// Bare "/" → offer just the skills entry (avoid duplicating the built-in skill list).
-					// "/skills" or "/skills <filter>" → the translated catalog.
-					const q = query.trimStart();
-					if (q !== "" && !q.startsWith("skills")) return [];
+					// Menu tokens never contain whitespace (the trigger scan stops at
+					// whitespace), so "/skills <filter>" is unreachable by design. Flow:
+					// - bare "/" → a single discoverable "skills" entry;
+					// - any prefix of "skills" (or "skills" itself) → the translated catalog.
+					const q = query.trimStart().toLowerCase();
+					if (q !== "" && !q.startsWith("skills") && !"skills".startsWith(q)) return [];
 					if (q === "") {
 						return [{ name: "skills", description: t("menu.entryHint") }];
 					}
-					const filter = q.slice("skills".length).trimStart();
 
 					let skills;
 					try {
@@ -149,14 +150,12 @@ window.__ModuleLoader__.load({
 					} catch { return []; }
 					if (signal.aborted) return [];
 
-					return skills
-						.filter(s => filter === "" || s.name.startsWith(filter))
-						.map(s => ({
-							name: s.name,
-							description: s.modelInvocable
-								? s.descriptionTranslated
-								: `${t("menu.userOnly")} · ${s.descriptionTranslated}`
-						}));
+					return skills.map(s => ({
+						name: s.name,
+						description: s.modelInvocable
+							? s.descriptionTranslated
+							: `${t("menu.userOnly")} · ${s.descriptionTranslated}`
+					}));
 				},
 				warm(session) { fetchCatalog(session.sessionId).catch(() => {}); },
 				lexicon(session) {
@@ -173,6 +172,10 @@ window.__ModuleLoader__.load({
 					};
 				},
 				onPick({ candidate }) {
+					// Entry pick keeps the token slash-terminated (no trailing space)
+					// so the trigger re-detects and the menu reopens with the catalog;
+					// a skill pick inserts "/name " for the skill tool to consume.
+					if (candidate.name === "skills") return { text: "/skills" };
 					return { text: `/${candidate.name} ` };
 				}
 			};
