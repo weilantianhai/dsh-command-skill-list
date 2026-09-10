@@ -1,66 +1,67 @@
-{
-  "name": "dsh-command-skill-list",
-  "description": "/skills command for DeepSeek Harness — list user-invocable skills with auto-translated descriptions (zh↔en), pick to load into the current message.",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "lib/index.js",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/weilantianhai/dsh-command-skill-list.git"
-  },
-  "keywords": [
-    "deepseek",
-    "harness",
-    "dsh",
-    "dsh-plugin",
-    "skills",
-    "command",
-    "translation",
-    "i18n"
-  ],
-  "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
-  },
-  "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1"
-  },
-  "dsh": {
-    "bundle": {
-      "patch": "./cordis.patch.yml"
-    },
-    "client": {
-      "inject": [
-        "@deepseek-ai/dsh-client-connection",
-        "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-api-remotes",
-        "@deepseek-ai/dsh-client-ui-input-trigger",
-        "@deepseek-ai/dsh-client-ui-settings"
-      ],
-      "platform": "web"
-    }
-  },
-  "exports": {
-    ".": "./lib/index.js",
-    "./client": "./client/client.js",
-    "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
-  },
-  "files": [
-    "lib",
-    "client",
-    "data",
-    "cordis.patch.yml",
-    "LICENSE",
-    "README.md"
-  ],
-  "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@types/node": "^26.2.0",
-    "typescript": "^7.0.2"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
-  }
+﻿{
+    "name":  "dsh-command-skill-list",
+    "description":  "/skills command for DeepSeek Harness 鈥?list user-invocable skills with auto-translated descriptions (zh鈫攅n), pick to load into the current message.",
+    "version":  "0.1.0",
+    "type":  "module",
+    "main":  "lib/index.js",
+    "license":  "MIT",
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/weilantianhai/dsh-command-skill-list.git"
+                   },
+    "keywords":  [
+                     "deepseek",
+                     "harness",
+                     "dsh",
+                     "dsh-plugin",
+                     "skills",
+                     "command",
+                     "translation",
+                     "i18n"
+                 ],
+    "scripts":  {
+                    "typecheck":  "tsc -p tsconfig.json --noEmit",
+                    "test":  "node test/selfcheck.mjs"
+                },
+    "peerDependencies":  {
+                             "@deepseek-ai/cordis":  "^4.0.1"
+                         },
+    "dsh":  {
+                "bundle":  {
+                               "patch":  "./cordis.patch.yml"
+                           },
+                "client":  {
+                               "inject":  [
+                                              "@deepseek-ai/dsh-client-connection",
+                                              "@deepseek-ai/dsh-client-runtime",
+                                              "@deepseek-ai/dsh-client-locale",
+                                              "@deepseek-ai/dsh-api-remotes",
+                                              "@deepseek-ai/dsh-client-ui-input-trigger",
+                                              "@deepseek-ai/dsh-client-ui-settings"
+                                          ],
+                               "platform":  "web"
+                           }
+            },
+    "exports":  {
+                    ".":  "./lib/index.js",
+                    "./client":  "./client/client.js",
+                    "./cordis.patch.yml":  "./cordis.patch.yml",
+                    "./package.json":  "./package.json"
+                },
+    "files":  [
+                  "lib",
+                  "client",
+                  "data",
+                  "cordis.patch.yml",
+                  "LICENSE",
+                  "README.md"
+              ],
+    "devDependencies":  {
+                            "@deepseek-ai/cordis":  "^4.0.1",
+                            "@types/node":  "^26.2.0",
+                            "typescript":  "^7.0.2"
+                        },
+    "publishConfig":  {
+                          "registry":  "https://registry.npmjs.org/"
+                      }
 }
