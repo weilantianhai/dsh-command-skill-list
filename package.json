@@ -1,4 +1,4 @@
-﻿{
+{
     "name":  "dsh-command-skill-list",
     "description":  "/skills command for DeepSeek Harness 鈥?list user-invocable skills with auto-translated descriptions (zh鈫攅n), pick to load into the current message.",
     "version":  "0.1.0",
